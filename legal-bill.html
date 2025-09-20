@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Document Generator</title>
+    <!-- CSS styles are handled by Tailwind CDN -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CDN for utility classes used throughout the UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'media',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans']
+            },
+            colors: {
+              background: '#f5f6f8',
+              foreground: '#0f172a',
+              primary: { DEFAULT: '#2563eb', foreground: '#f8fafc' },
+              muted: '#f1f5f9',
+              border: '#e2e8f0',
+              card: '#ffffff'
+            },
+            borderRadius: { lg: '0.75rem', xl: '1rem', '2xl': '1.25rem' },
+            boxShadow: {
+              soft: '0 6px 24px rgba(15, 23, 42, 0.08)',
+              glass: '0 10px 40px rgba(2, 6, 23, 0.12)'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root{
+        --bg: #f5f6f8;
+        --fg: #0f172a;
+        --card: #ffffff;
+        --border: #e2e8f0;
+      }
+      body{background: radial-gradient(1200px 600px at 10% -10%, #eef2ff 0%, rgba(238,242,255,0) 60%), linear-gradient(180deg,#fafafa 0%, #f3f4f6 100%); color: var(--fg); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6;}
+      .glass{background: rgba(255,255,255,0.7); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.35); box-shadow: 0 8px 30px rgba(2,6,23,0.08); border-radius: 16px;}
+      .card{background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow, 0 4px 18px rgba(2,6,23,0.06));}
+      .btn{border-radius: 12px; padding: 10px 16px; font-weight: 600; transition: all .2s ease; box-shadow: 0 6px 16px rgba(37,99,235,0.15);} 
+      .btn:hover{transform: translateY(-1px);} 
+    </style>
+
+   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/javascript">
+        const { useState, useEffect } = React;
+        
+        // Simple select component for form elements
+        const SelectComponent = ({ children, className = "", ...props }) => {
+            return React.createElement("select", {
+                className: 'flex h-10 w-full rounded-xl border border-white/30 bg-glass-light backdrop-blur-lg px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:ring-offset-2 focus:bg-glass-medium disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 hover:bg-glass-medium ' + className,
+                ...props
+            }, children);
+        };
+        
+        // Import components
+        const Button = ({ children, variant = "default", size = "default", className = "", "aria-label": ariaLabel, disabled, ...props }) => {
+            const baseClasses = "inline-flex items-center justify-center rounded-md text-sm font-medium border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+            const variants = {
+                default: "bg-blue-600 text-white hover:bg-blue-700 border-blue-600",
+                destructive: "bg-red-600 text-white hover:bg-red-700 border-red-600",
+                outline: "border-gray-300 bg-white hover:bg-gray-50 text-gray-700",
+                secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200 border-gray-300",
+                ghost: "hover:bg-gray-100 text-gray-700 border-transparent",
+                link: "text-blue-600 underline-offset-4 hover:underline border-transparent"
+            };
+            const sizes = {
+                default: "h-10 px-4 py-2",
+                sm: "h-9 rounded-lg px-3",
+                lg: "h-11 rounded-xl px-8",
+                icon: "h-10 w-10"
+            };
+            
+            return React.createElement("button", {
+                className: baseClasses + ' ' + variants[variant] + ' ' + sizes[size] + ' ' + className,
+                "aria-label": ariaLabel,
+                "aria-disabled": disabled,
+                disabled: disabled,
+                ...props
+            }, children);
+        };
+        
+        const Card = ({ children, className = "", ...props }) => {
+            return React.createElement("div", {
+                className: 'rounded-lg border border-gray-200 bg-white text-gray-900 shadow-sm hover:shadow-md transition-shadow duration-200 ' + className,
+                ...props
+            }, children);
+        };
+        
+        const CardHeader = ({ children, className = "", ...props }) => {
+            return React.createElement("div", {
+                className: 'flex flex-col space-y-1.5 p-6 ' + className,
+                ...props
+            }, children);
+        };
+        
+        const CardTitle = ({ children, className = "", ...props }) => {
+            return React.createElement("h3", {
+                className: 'text-2xl font-semibold leading-none tracking-tight ' + className,
+                ...props
+            }, children);
+        };
+        
+        const CardContent = ({ children, className = "", ...props }) => {
+            return React.createElement("div", {
+                className: 'p-6 pt-0 ' + className,
+                ...props
+            }, children);
+        };
+        
+        const Badge = ({ children, variant = "default", className = "", ...props }) => {
+            const variants = {
+                default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+                secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+                outline: "text-foreground",
+                success: "border-transparent bg-green-500 text-white hover:bg-green-600"
+            };
+            
+            return React.createElement("div", {
+                className: 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ' + variants[variant] + ' ' + className,
+                ...props
+            }, children);
+        };
+        
+        const Input = ({ className = "", id, "aria-label": ariaLabel, "aria-describedby": ariaDescribedBy, required, ...props }) => {
+             return React.createElement("input", {
+                 className: 'flex h-10 w-full rounded-xl border border-white/30 bg-glass-light backdrop-blur-lg px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:bg-glass-medium disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 hover:bg-glass-medium ' + className,
+                 id: id,
+                 "aria-label": ariaLabel,
+                 "aria-describedby": ariaDescribedBy,
+                 "aria-required": required,
+                 ...props
+             });
+         };
+         
+         const Label = ({ className = "", htmlFor, children, ...props }) => {
+             return React.createElement("label", {
+                 className: 'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ' + className,
+                 htmlFor: htmlFor,
+                 ...props
+             }, children);
+         };
+         
+
+         
+         const Textarea = ({ className = "", id, "aria-label": ariaLabel, "aria-describedby": ariaDescribedBy, required, ...props }) => {
+             return React.createElement("textarea", {
+                 className: 'flex min-h-[80px] w-full rounded-xl border border-white/30 bg-glass-light backdrop-blur-lg px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:bg-glass-medium disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 hover:bg-glass-medium ' + className,
+                 id: id,
+                 "aria-label": ariaLabel,
+                 "aria-describedby": ariaDescribedBy,
+                 "aria-required": required,
+                 ...props
+             });
+         };
+         
+         const BillForm = ({ showToast }) => {
+             const [services, setServices] = useState([{ id: 0, type: '', hours: '', description: '', rate: 0 }]);
+             const [formData, setFormData] = useState({
+                 caseNumber: '',
+                 clientName: '',
+                 opposingParty: '',
+                 courtType: 'magistrate',
+                 paymentCurrency: 'ZAR',
+                 payerType: 'client',
+                 payerAddress: ''
+             });
+             
+             const serviceTypes = getAvailableServices();
+             
+             const magistrateCourtTariffs = [
+                 { value: 'consultation', label: 'Legal Consultation (Magistrate)', rate: 1200 },
+                 { value: 'research', label: 'Legal Research (Magistrate)', rate: 950 },
+                 { value: 'drafting', label: 'Document Drafting (Magistrate)', rate: 1400 },
+                 { value: 'court_appearance', label: 'Court Appearance (Magistrate)', rate: 2200 },
+                 { value: 'preparation', label: 'Case Preparation (Magistrate)', rate: 1100 },
+                 { value: 'correspondence', label: 'Correspondence (Magistrate)', rate: 800 }
+             ];
+             
+             const highCourtTariffs = [
+                 { value: 'consultation', label: 'Legal Consultation (High Court)', rate: 1800 },
+                 { value: 'research', label: 'Legal Research (High Court)', rate: 1450 },
+                 { value: 'drafting', label: 'Document Drafting (High Court)', rate: 2100 },
+                 { value: 'court_appearance', label: 'Court Appearance (High Court)', rate: 3500 },
+                 { value: 'preparation', label: 'Case Preparation (High Court)', rate: 1650 },
+                 { value: 'correspondence', label: 'Correspondence (High Court)', rate: 1200 },
+                 { value: 'motion_practice', label: 'Motion Practice (High Court)', rate: 2800 },
+                 { value: 'trial_preparation', label: 'Trial Preparation (High Court)', rate: 2400 }
+             ];
+             
+             const getAvailableServices = () => {
+                 return formData.courtType === 'high' ? highCourtTariffs : magistrateCourtTariffs;
+             };
+             
+             const addService = () => {
+                 setServices([...services, { id: Date.now(), type: '', hours: '', description: '', rate: 0 }]);
+             };
+             
+             const removeService = (id) => {
+                 setServices(services.filter(service => service.id !== id));
+             };
+             
+             const updateService = (id, field, value) => {
+                 setServices(services.map(service => {
+                     if (service.id === id) {
+                         const updated = { ...service, [field]: value };
+                         if (field === 'type') {
+                             const serviceType = serviceTypes.find(st => st.value === value);
+                             updated.rate = serviceType ? serviceType.rate : 0;
+                         }
+                         return updated;
+                     }
+                     return service;
+                 }));
+             };
+             
+             const calculateTotal = () => {
+                 const subtotal = services.reduce((sum, service) => {
+                     return sum + (parseFloat(service.hours) || 0) * (service.rate || 0);
+                 }, 0);
+                 const vat = subtotal * 0.15;
+                 return { subtotal, vat, total: subtotal + vat };
+             };
+             
+             const { subtotal, vat, total } = calculateTotal();
+             
+             return React.createElement("form", {
+                 className: "space-y-8",
+                 onSubmit: (e) => {
+                     e.preventDefault();
+                     
+                     // Basic validation
+                     if (!formData.caseNumber || !formData.clientName || !formData.courtType) {
+                         showToast("Please fill in all required fields including court type", "error");
+                         return;
+                     }
+                     
+                     if (services.some(s => !s.type || !s.hours)) {
+                         showToast("Please complete all service details", "error");
+                         return;
+                     }
+                     
+                     console.log('Form submitted', { formData, services });
+                     showToast("Bill of costs generated successfully!", "success");
+                 }
+             },
+                 // Case Information Section
+                 React.createElement(Card, null,
+                     React.createElement(CardHeader, null,
+                         React.createElement(CardTitle, { className: "text-lg" }, "📋 Case Information")
+                     ),
+                     React.createElement(CardContent, { className: "space-y-4" },
+                         React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                             React.createElement("div", { className: "space-y-2" },
+                                 React.createElement(Label, { htmlFor: "caseNumber" }, "Case Number *"),
+                                 React.createElement(Input, {
+                                     id: "caseNumber",
+                                     placeholder: "Enter case number",
+                                     value: formData.caseNumber,
+                                     onChange: (e) => setFormData({...formData, caseNumber: e.target.value}),
+                                     required: true,
+                                     "aria-label": "Case number (required)",
+                                     "aria-describedby": "caseNumber-help"
+                                 }),
+                                 React.createElement("div", {
+                                     id: "caseNumber-help",
+                                     className: "text-xs text-gray-500",
+                                     "aria-live": "polite"
+                                 }, "Enter the unique case identifier")
+                             ),
+                             React.createElement("div", { className: "space-y-2" },
+                                 React.createElement(Label, { htmlFor: "clientName" }, "Client Name *"),
+                                 React.createElement(Input, {
+                                     id: "clientName",
+                                     placeholder: "Enter client name",
+                                     value: formData.clientName,
+                                     onChange: (e) => setFormData({...formData, clientName: e.target.value}),
+                                     required: true,
+                                     "aria-label": "Client full name (required)",
+                                     "aria-describedby": "clientName-help"
+                                 }),
+                                 React.createElement("div", {
+                                     id: "clientName-help",
+                                     className: "text-xs text-gray-500",
+                                     "aria-live": "polite"
+                                 }, "Enter the full legal name of the client")
+                             )
+                         ),
+                         React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                             React.createElement("div", { className: "space-y-2" },
+                                 React.createElement(Label, { htmlFor: "opposingParty" }, "Opposing Party"),
+                                 React.createElement(Input, {
+                                     id: "opposingParty",
+                                     placeholder: "Enter opposing party name",
+                                     value: formData.opposingParty,
+                                     onChange: (e) => setFormData({...formData, opposingParty: e.target.value})
+                                 })
+                             ),
+                             React.createElement("div", { className: "space-y-2" },
+                                  React.createElement(Label, { htmlFor: "courtType" }, "Court Type *"),
+                                  React.createElement("select", {
+                                      id: "courtType",
+                                      className: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+                                      value: formData.courtType,
+                                      onChange: (e) => {
+                                          setFormData({...formData, courtType: e.target.value});
+                                          // Reset services when court type changes to apply correct tariffs
+                                          setServices([{ id: 0, type: '', hours: '', description: '', rate: 0 }]);
+                                      },
+                                      "aria-label": "Court type selection (required)",
+                                      "aria-describedby": "courtType-help",
+                                      "aria-required": "true"
+                                  },
+                                      React.createElement("option", { value: "magistrate" }, "Magistrate Court"),
+                                       React.createElement("option", { value: "high" }, "High Court")
+                                   ),
+                                   React.createElement("div", {
+                                       id: "courtType-help",
+                                       className: "text-xs text-gray-500",
+                                       "aria-live": "polite"
+                                   }, "Select the court type to apply appropriate legal tariffs")
+                               )
+                         )
+                     )
+                 )
+                 ),
+                 
+                 // Services Section
+                 React.createElement(Card, null,
+                     React.createElement(CardHeader, null,
+                         React.createElement("div", { className: "flex items-center justify-between" },
+                             React.createElement(CardTitle, { className: "text-lg" }, "⚖️ Legal Services & Tariffs"),
+                             React.createElement(Button, {
+                                 type: "button",
+                                 variant: "outline",
+                                 size: "sm",
+                                 onClick: addService
+                             }, "➕ Add Service")
+                         )
+                     ),
+                     React.createElement(CardContent, { className: "space-y-6" },
+                         services.map((service, index) =>
+                             React.createElement("div", {
+                                 key: service.id,
+                                 className: "p-4 border rounded-lg space-y-4 relative"
+                             },
+                                 services.length > 1 ? React.createElement(Button, {
+                                     type: "button",
+                                     variant: "destructive",
+                                     size: "sm",
+                                     className: "absolute top-2 right-2",
+                                     onClick: () => removeService(service.id)
+                                 }, "🗑️") : null,
+                                 React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4" },
+                                     React.createElement("div", { className: "space-y-2" },
+                                         React.createElement(Label, null, "Service Type"),
+                                         React.createElement("select", {
+                                             className: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+                                             value: service.type,
+                                             onChange: (e) => {
+                                                 const availableServices = getAvailableServices();
+                                                 const selectedService = availableServices.find(s => s.value === e.target.value);
+                                                 updateService(service.id, 'type', e.target.value);
+                                                 updateService(service.id, 'rate', (selectedService && selectedService.rate) || 0);
+                                             }
+                                         },
+                                             React.createElement("option", { value: "" }, "Select Service"),
+                                             getAvailableServices().map(st =>
+                                                 React.createElement("option", {
+                                                     key: st.value,
+                                                     value: st.value
+                                                 }, st.label + ' (R' + st.rate + '/hr)')
+                                             )
+                                         )
+                                     ),
+                                     React.createElement("div", { className: "space-y-2" },
+                                         React.createElement(Label, null, "Hours/Units"),
+                                         React.createElement(Input, {
+                                             type: "number",
+                                             step: "0.25",
+                                             min: "0",
+                                             placeholder: "0.00",
+                                             value: service.hours,
+                                             onChange: (e) => updateService(service.id, 'hours', e.target.value)
+                                         })
+                                     ),
+                                     React.createElement("div", { className: "space-y-2" },
+                                         React.createElement(Label, null, "Rate"),
+                                         React.createElement(Input, {
+                                             type: "text",
+                                             value: service.rate ? 'R' + service.rate + '/hr' : '',
+                                             disabled: true,
+                                             className: "bg-muted"
+                                         })
+                                     )
+                                 ),
+                                 React.createElement("div", { className: "space-y-2" },
+                                     React.createElement(Label, null, "Description"),
+                                     React.createElement(Textarea, {
+                                         placeholder: "Describe the service provided...",
+                                         value: service.description,
+                                         onChange: (e) => updateService(service.id, 'description', e.target.value)
+                                     })
+                                 )
+                             )
+                         )
+                     )
+                 ),
+                 
+                 // Payment Section
+                 React.createElement(Card, null,
+                     React.createElement(CardHeader, null,
+                         React.createElement(CardTitle, { className: "text-lg flex items-center gap-2" }, 
+                             "💳 Payment Details"
+                         )
+                     ),
+                     React.createElement(CardContent, { className: "space-y-4" },
+                         React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                             React.createElement("div", { className: "space-y-2" },
+                                 React.createElement(Label, null, "Payment Currency"),
+                                 React.createElement("select", {
+                                     className: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+                                     value: formData.paymentCurrency,
+                                     onChange: (e) => setFormData({...formData, paymentCurrency: e.target.value})
+                                 },
+                                     React.createElement("option", { value: "ZAR" }, "South African Rand (ZAR)"),
+                                     React.createElement("option", { value: "USD" }, "US Dollar (USD)")
+                                 )
+                             ),
+                             React.createElement("div", { className: "space-y-2" },
+                                 React.createElement(Label, null, "Who Pays?"),
+                                 React.createElement("select", {
+                                     className: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+                                     value: formData.payerType,
+                                     onChange: (e) => setFormData({...formData, payerType: e.target.value})
+                                 },
+                                     React.createElement("option", { value: "client" }, "Client"),
+                                     React.createElement("option", { value: "losing-party" }, "Losing Party")
+                                 )
+                             )
+                         ),
+                         React.createElement("div", { className: "space-y-2" },
+                             React.createElement(Label, null, "Payer Wallet Address"),
+                             React.createElement(Input, {
+                                 placeholder: "0x...",
+                                 value: formData.payerAddress,
+                                 onChange: (e) => setFormData({...formData, payerAddress: e.target.value})
+                             })
+                         )
+                     )
+                 ),
+                 
+                 // Bill Summary
+                 React.createElement(Card, null,
+                     React.createElement(CardHeader, null,
+                         React.createElement(CardTitle, { className: "text-lg" }, "📊 Bill Summary")
+                     ),
+                     React.createElement(CardContent, { className: "space-y-3" },
+                         React.createElement("div", { className: "flex justify-between" },
+                             React.createElement("span", null, "Subtotal:"),
+                             React.createElement("span", { className: "font-medium" }, 'R' + subtotal.toFixed(2))
+                         ),
+                         React.createElement("div", { className: "flex justify-between" },
+                             React.createElement("span", null, "VAT (15%):"),
+                             React.createElement("span", { className: "font-medium" }, 'R' + (subtotal * 0.15).toFixed(2))
+                         ),
+                         React.createElement("div", { className: "flex justify-between text-lg font-bold border-t pt-2" },
+                             React.createElement("span", null, "Total:"),
+                             React.createElement("span", null, 'R' + (subtotal * 1.15).toFixed(2))
+                         ),
+                         React.createElement("div", { className: "flex justify-between text-sm text-muted-foreground" },
+                             React.createElement("span", null, 'Amount in ' + formData.paymentCurrency + ':'),
+                             React.createElement("span", null, formData.paymentCurrency === 'USD' ? '$' + ((subtotal * 1.15) / 18.5).toFixed(2) + ' USD' : 'R' + (subtotal * 1.15).toFixed(2) + ' ZAR')
+                         )
+                     )
+                 ),
+                 
+                 // Submit Button
+                 React.createElement(Button, {
+                     type: "submit",
+                     size: "lg",
+                     className: "w-full",
+                     disabled: !formData.caseNumber || !formData.clientName || services.some(s => !s.type || !s.hours)
+                 }, 
+                     React.createElement("span", { className: "flex items-center gap-2" },
+                         "🚀 Create Bill & Process Payment"
+                     )
+                 )
+             );
+         };
+         
+         const Sidebar = ({ activeTab, setActiveTab, walletAddress, walletBalance, setWalletAddress, setWalletBalance }) => {
+           const menuItems = [
+               { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', active: activeTab === 'dashboard' },
+               { id: 'profile', label: 'Client Management', icon: 'users', active: activeTab === 'profile' },
+               { id: 'analytics', label: 'Billing & Reports', icon: 'file-text', active: activeTab === 'analytics' },
+               { id: 'settings', label: 'Settings', icon: 'settings', active: activeTab === 'settings' }
+           ];
+
+            const sidebarContent = React.createElement(React.Fragment, null,
+                React.createElement("div", {
+                    className: "p-6 border-b border-gray-200 bg-white"
+                },
+                    React.createElement("h1", {
+                        className: "text-xl font-bold text-gray-800"
+                    }, "Legal Management System")
+                ),
+                React.createElement("nav", {
+                    className: "flex-1 p-4 space-y-1 bg-white"
+                },
+                    menuItems.map(item =>
+                        React.createElement("div", {
+                            key: item.id,
+                            className: `flex items-center space-x-3 px-4 py-3 rounded-md cursor-pointer transition-colors duration-200 ${
+                                item.active ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            }`,
+                            onClick: () => {
+                                setActiveTab(item.id);
+                            }
+                        },
+                            React.createElement("span", { className: "text-sm" }, 
+                                item.icon === 'dashboard' ? '📊' :
+                                item.icon === 'users' ? '👥' :
+                                item.icon === 'file-text' ? '📄' :
+                                item.icon === 'settings' ? '⚙️' : '📋'
+                            ),
+                            React.createElement("span", { className: "text-sm font-medium" }, item.label)
+                        )
+                    )
+                ),
+                React.createElement("div", {
+                    className: "p-4 border-t border-gray-200 bg-white"
+                },
+                    React.createElement("div", {
+                        className: "bg-gray-50 rounded-lg p-4 text-center border border-gray-200 hover:bg-gray-100 transition-colors duration-200"
+                    },
+                        React.createElement("p", {
+                            className: "text-xs text-gray-500 mb-2 font-medium"
+                        }, "Wallet Status"),
+                        walletAddress ? React.createElement("div", {
+                            className: "space-y-2"
+                        },
+                            React.createElement("div", {
+                                className: "text-xs text-gray-700 cursor-pointer hover:text-blue-600 font-mono",
+                                onClick: () => {
+                                    navigator.clipboard.writeText(walletAddress);
+                                    // Show toast notification if available
+                                }
+                            }, walletAddress.slice(0, 6) + '...' + walletAddress.slice(-4)),
+                            React.createElement("div", {
+                                className: "text-xs text-gray-600 font-medium"
+                            }, 'Balance: R' + walletBalance),
+                            React.createElement(Button, {
+                                size: "sm",
+                                className: "w-full bg-green-600 text-white hover:bg-green-700 text-xs"
+                            }, "Connected")
+                        ) : React.createElement(Button, {
+                            size: "sm",
+                            className: "w-full bg-blue-600 text-white hover:bg-blue-700 text-xs",
+                            onClick: () => {
+                                // Connect wallet functionality
+                                setWalletAddress("0x1234...5678");
+                                setWalletBalance("15,750.00");
+                            }
+                        }, "Connect Wallet")
+                    )
+                )
+            );
+
+            return React.createElement("div", {
+                 className: "w-64 h-screen bg-sidebar/90 backdrop-blur-2xl text-sidebar-foreground flex flex-col border-r border-white/10 shadow-2xl"
+             }, sidebarContent);
+        };
+
+        const MobileMenuButton = ({ onClick }) => {
+            return React.createElement("button", {
+                className: "md:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200",
+                onClick: onClick
+            },
+                React.createElement("svg", {
+                    className: "w-6 h-6",
+                    fill: "none",
+                    stroke: "currentColor",
+                    viewBox: "0 0 24 24"
+                },
+                    React.createElement("path", {
+                        strokeLinecap: "round",
+                        strokeLinejoin: "round",
+                        strokeWidth: 2,
+                        d: "M4 6h16M4 12h16M4 18h16"
+                    })
+                )
+            );
+        };
+
+        const Sidebar_Old = ({ activeTab, setActiveTab }) => {
+           const menuItems = [
+               { id: 'dashboard', label: 'DASHBOARD', icon: React.createElement(lucide.LayoutDashboard, { size: 16 }), active: true },
+               { id: 'profile', label: 'PROFILE', icon: React.createElement(lucide.User, { size: 16 }) },
+               { id: 'analytics', label: 'ANALYTICS', icon: React.createElement(lucide.BarChart3, { size: 16 }) },
+               { id: 'settings', label: 'SETTINGS', icon: React.createElement(lucide.Settings, { size: 16 }) }
+           ];
+
+            return React.createElement("div", {
+                className: "w-64 h-screen bg-white flex flex-col border-r border-gray-200 shadow-sm hidden md:flex"
+            },
+                 React.createElement("div", {
+                     className: "p-6 border-b border-gray-200 bg-white"
+                 },
+                     React.createElement("h1", {
+                         className: "text-xl font-bold text-gray-800",
+                         id: "main-heading",
+                         role: "banner"
+                     }, "Legal Management System")
+                 ),
+                 React.createElement("nav", {
+                     className: "flex-1 p-4 space-y-1 bg-white",
+                     role: "navigation",
+                     "aria-label": "Main navigation"
+                 },
+                     menuItems.map((item, index) =>
+                         React.createElement("button", {
+                             key: item.id,
+                             className: `w-full flex items-center space-x-3 px-4 py-3 rounded-md cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
+                                 item.active ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                             }`,
+                             onClick: () => setActiveTab(item.id),
+                             role: "tab",
+                             "aria-selected": item.active,
+                             "aria-controls": item.id + '-panel',
+                             tabIndex: item.active ? 0 : -1,
+                             "aria-label": 'Navigate to ' + item.label + ' section',
+                             onKeyDown: (e) => {
+                                 if (e.key === 'Enter' || e.key === ' ') {
+                                     e.preventDefault();
+                                     setActiveTab(item.id);
+                                 } else if (e.key === 'ArrowDown') {
+                                     e.preventDefault();
+                                     const nextIndex = (index + 1) % menuItems.length;
+                                     const nextButton = e.target.parentElement.children[nextIndex];
+                                     if (nextButton) nextButton.focus();
+                                 } else if (e.key === 'ArrowUp') {
+                                     e.preventDefault();
+                                     const prevIndex = index === 0 ? menuItems.length - 1 : index - 1;
+                                     const prevButton = e.target.parentElement.children[prevIndex];
+                                     if (prevButton) prevButton.focus();
+                                 }
+                             }
+                         },
+                             React.createElement("span", { 
+                                 className: "text-sm",
+                                 "aria-hidden": "true"
+                             }, item.icon),
+                             React.createElement("span", { className: "text-sm font-medium drop-shadow-sm" }, item.label)
+                         )
+                     )
+                 ),
+                 React.createElement("div", {
+                     className: "p-4 border-t border-gray-200 bg-white"
+                 },
+                     React.createElement("div", {
+                         className: "bg-gray-50 rounded-lg p-4 text-center border border-gray-200 hover:bg-gray-100 transition-colors duration-200"
+                     },
+                         React.createElement("p", {
+                             className: "text-xs text-gray-500 mb-2 font-medium"
+                         }, "Legal Analytics"),
+                         React.createElement("p", {
+                             className: "text-xs text-gray-500 mb-3"
+                         }, "AI-Powered Insights"),
+                         React.createElement(Button, {
+                             size: "sm",
+                             className: "w-full bg-blue-600 text-white hover:bg-blue-700 text-xs"
+                         }, "Try Now")
+                     ),
+                     React.createElement("div", {
+                         className: "flex items-center space-x-3 mt-4"
+                     },
+                         React.createElement("div", {
+                             className: "w-8 h-8 bg-green-500 rounded-full flex items-center justify-center"
+                         },
+                             React.createElement("span", { className: "text-xs text-white" }, "OT")
+                         ),
+                         React.createElement("div", null,
+                             React.createElement("p", { className: "text-sm text-white" }, "OLIVIA TIMDOC"),
+                             React.createElement("p", { className: "text-xs text-gray-400" }, "DESIGN LEAD")
+                         )
+                     )
+                 )
+             );
+         };
+
+         const Header = () => {
+            return React.createElement("header", {
+                className: "bg-white border-b border-gray-200 px-6 py-4"
+            },
+                React.createElement("div", {
+                    className: "flex items-center justify-between"
+                },
+                    React.createElement("div", {
+                         className: "flex items-center space-x-4"
+                     },
+                         React.createElement("h1", {
+                             className: "text-2xl font-bold text-gray-900"
+                         }, "Hello Olivia"),
+        
+                     ),
+                     React.createElement("div", {
+                         className: "flex items-center space-x-4"
+                     },
+                         React.createElement("button", {
+                             className: "p-2 text-gray-500 hover:text-gray-700"
+                         }, "🔍"),
+                         React.createElement("button", {
+                             className: "p-2 text-gray-500 hover:text-gray-700"
+                         }, "🔔")
+                     )
+                 )
+             );
+         };
+
+        const WalletConnection = ({ walletAddress, walletBalance, onConnectWallet, onCopyAddress }) => {
+            return React.createElement("div", {
+                className: "fixed bottom-4 left-4 z-50 bg-white/90 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300"
+            },
+                React.createElement("div", {
+                    className: "flex flex-col items-start space-y-2"
+                },
+                    walletAddress ? React.createElement("div", {
+                        className: "flex items-center space-x-2"
+                    },
+                        React.createElement(Badge, {
+                            variant: "success",
+                            className: "cursor-pointer",
+                            onClick: onCopyAddress
+                        }, walletAddress.slice(0, 6) + '...' + walletAddress.slice(-4)),
+                        React.createElement("span", {
+                            className: "text-sm font-medium"
+                        }, 'R' + walletBalance)
+                    ) : null,
+                    React.createElement(Button, {
+                        onClick: onConnectWallet,
+                        size: "sm",
+                        className: "w-full"
+                    }, walletAddress ? "Connected" : "Connect Wallet")
+                )
+            );
+        };
+
+        
+        const Toast = ({ message, type = "success", onClose }) => {
+             useEffect(() => {
+                 const timer = setTimeout(() => {
+                     onClose();
+                 }, 3000);
+                 return () => clearTimeout(timer);
+             }, [onClose]);
+             
+             const bgColor = type === "success" ? "bg-green-500" : type === "error" ? "bg-red-500" : "bg-blue-500";
+             
+             return React.createElement("div", {
+                 className: 'fixed top-4 right-4 z-50 ' + bgColor + ' text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 animate-in slide-in-from-top-2'
+             },
+                 React.createElement("span", null, message),
+                 React.createElement("button", {
+                     onClick: onClose,
+                     className: "ml-2 text-white hover:text-gray-200"
+                 }, "✕")
+             );
+         };
+         
+         const DashboardContent = ({ showToast }) => {
+             return React.createElement("div", { className: "p-6 space-y-6" },
+                 React.createElement(Card, null,
+                     React.createElement(CardContent, { className: "p-6" },
+                         React.createElement("div", { className: "text-2xl font-bold" }, "Welcome to your Dashboard"),
+                         React.createElement("p", { className: "text-gray-600 mt-2" }, "Use the sidebar to navigate: manage clients, view billing reports, or create a bill of costs.")
+                     )
+                 )
+             );
+         };
+
+         // ====================== ClientManagement (placeholder) ======================
+         const ClientManagement = ({ showToast }) => (
+             React.createElement("div", { className: "p-6" },
+                 React.createElement(Card, null,
+                     React.createElement(CardContent, { className: "p-6" },
+                         React.createElement("div", { className: "text-xl font-semibold" }, "Client Management"),
+                         React.createElement("p", { className: "text-gray-600 mt-2" }, "This section will let you manage clients. Coming soon.")
+                     )
+                 )
+             )
+         );
+
+         // ====================== BillingReports (placeholder) ======================
+         const BillingReports = ({ showToast }) => (
+             React.createElement("div", { className: "p-6" },
+                 React.createElement(Card, null,
+                     React.createElement(CardContent, { className: "p-6" },
+                         React.createElement("div", { className: "text-xl font-semibold" }, "Billing Reports"),
+                         React.createElement("p", { className: "text-gray-600 mt-2" }, "This section will show billing summaries and exports. Coming soon.")
+                     )
+                 )
+             )
+         );
+
+         // ====================== Settings ======================
+         const Settings = ({ showToast }) => {
+             const [exporting, setExporting] = useState(false);
+             const [importing, setImporting] = useState(false);
+             const [clearing, setClearing] = useState(false);
+             const [importText, setImportText] = useState("");
+             const [confirmText, setConfirmText] = useState("");
+
+             const handleExport = async () => {
+                 try {
+                     setExporting(true);
+                     if (!window.DataService) throw new Error('DataService not available');
+                     const ds = new window.DataService();
+                     if (ds.initializeEncryption) { await ds.initializeEncryption(); }
+                     const json = await ds.exportData();
+                     const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+                     const url = URL.createObjectURL(blob);
+                     const a = document.createElement('a');
+                     a.href = url;
+                     a.download = 'legal_backup_' + new Date().toISOString().slice(0,10) + '.json';
+                     a.click();
+                     URL.revokeObjectURL(url);
+                     showToast && showToast('Backup exported', 'success');
+                 } catch (e) {
+                     console.error(e);
+                     showToast && showToast('Export failed', 'error');
+                 } finally {
+                     setExporting(false);
+                 }
+             };
+
+             const handleImport = async () => {
+                 try {
+                     setImporting(true);
+                     if (!importText.trim()) { showToast && showToast('Paste JSON to import', 'error'); return; }
+                     if (!window.DataService) throw new Error('DataService not available');
+                     const ds = new window.DataService();
+                     if (ds.initializeEncryption) { await ds.initializeEncryption(); }
+                     const result = await ds.importData(importText);
+                     if (result.success) {
+                         const msg = 'Imported: ' + result.imported + ', Skipped: ' + result.skipped;
+                         showToast && showToast(msg, 'success');
+                         setImportText("");
+                     } else {
+                         showToast && showToast(result.error || 'Import failed', 'error');
+                     }
+                 } catch (e) {
+                     console.error(e);
+                     showToast && showToast('Import failed', 'error');
+                 } finally {
+                     setImporting(false);
+                 }
+             };
+
+             const handleClear = async () => {
+                 try {
+                     setClearing(true);
+                     if (!window.DataService) throw new Error('DataService not available');
+                     const ds = new window.DataService();
+                     const res = await ds.clearAllData(confirmText);
+                     if (res.success) {
+                         showToast && showToast(res.message || 'All data cleared', 'success');
+                         setConfirmText("");
+                     } else {
+                         showToast && showToast(res.error || 'Invalid confirmation code', 'error');
+                     }
+                 } catch (e) {
+                     console.error(e);
+                     showToast && showToast('Failed to clear data', 'error');
+                 } finally {
+                     setClearing(false);
+                 }
+             };
+
+             return React.createElement("div", { className: "p-6 space-y-6" },
+                 React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6" },
+                     React.createElement(Card, null,
+                         React.createElement(CardHeader, null, React.createElement(CardTitle, { className: "text-lg" }, "Backup")),
+                         React.createElement(CardContent, { className: "space-y-3" },
+                             React.createElement("p", { className: "text-sm text-gray-600" }, "Export all billing data as a JSON backup."),
+                             React.createElement(Button, { onClick: handleExport, disabled: exporting }, exporting ? 'Exporting...' : 'Export Backup')
+                         )
+                     ),
+                     React.createElement(Card, null,
+                         React.createElement(CardHeader, null, React.createElement(CardTitle, { className: "text-lg" }, "Restore")),
+                         React.createElement(CardContent, { className: "space-y-3" },
+                             React.createElement("p", { className: "text-sm text-gray-600" }, "Paste a previously exported JSON to restore bills."),
+                             React.createElement("textarea", { className: "w-full border rounded-md p-2 text-sm h-32", placeholder: "Paste JSON here...", value: importText, onChange: e => setImportText(e.target.value) }),
+                             React.createElement(Button, { onClick: handleImport, disabled: importing }, importing ? 'Importing...' : 'Import Data')
+                         )
+                     )
+                 ),
+                 React.createElement(Card, null,
+                     React.createElement(CardHeader, null, React.createElement(CardTitle, { className: "text-lg text-red-600" }, "Danger Zone")),
+                     React.createElement(CardContent, { className: "space-y-3" },
+                         React.createElement("p", { className: "text-sm text-gray-600" }, "Type CLEAR_ALL_LEGAL_DATA to confirm and delete ALL stored data."),
+                         React.createElement(Input, { placeholder: "Type CLEAR_ALL_LEGAL_DATA", value: confirmText, onChange: e => setConfirmText(e.target.value) }),
+                         React.createElement(Button, { variant: "destructive", onClick: handleClear, disabled: clearing }, clearing ? 'Clearing...' : 'Clear All Data')
+                     )
+                 )
+             );
+         };
+         const App = () => {
+             const [walletAddress, setWalletAddress] = useState("");
+            const [walletBalance, setWalletBalance] = useState("0");
+            const [toast, setToast] = useState(null);
+            const [activeTab, setActiveTab] = useState('dashboard');
+             
+             const showToast = (message, type = "success") => {
+                 setToast({ message, type });
+             };
+             
+             const hideToast = () => {
+                 setToast(null);
+             };
+             
+             const connectWallet = async () => {
+                 try {
+                     setWalletAddress("0x1234...5678");
+                     setWalletBalance("15,750.00");
+                     showToast("Wallet connected successfully!", "success");
+                 } catch (error) {
+                     showToast("Failed to connect wallet", "error");
+                 }
+             };
+             
+             const copyAddress = () => {
+                 navigator.clipboard.writeText(walletAddress);
+                 showToast("Address copied to clipboard!", "success");
+             };
+            
+            return React.createElement("div", {
+                className: "flex h-screen bg-white relative overflow-hidden"
+            },
+                React.createElement(Sidebar, {
+                    activeTab,
+                    setActiveTab,
+                    walletAddress,
+                    walletBalance,
+                    setWalletAddress,
+                    setWalletBalance
+                }),
+                React.createElement("div", {
+                    className: "flex-1 flex flex-col overflow-hidden relative z-10"
+                },
+                    React.createElement(Header),
+                    React.createElement("main", {
+                        className: "flex-1 overflow-y-auto bg-gray-50"
+                    },
+                        activeTab === 'dashboard' ? React.createElement(DashboardContent, { showToast: showToast }) :
+                        activeTab === 'profile' ? React.createElement(ClientManagement, { showToast: showToast }) :
+                        activeTab === 'analytics' ? React.createElement(BillingReports, { showToast: showToast }) :
+                        activeTab === 'settings' ? React.createElement(Settings, { showToast: showToast }) :
+                        React.createElement("div", { className: "p-6" },
+                            React.createElement(Card, null,
+                                React.createElement(CardHeader, null,
+                                    React.createElement(CardTitle, null, "📄 Create Bill of Costs"),
+                                    React.createElement("p", { className: "text-muted-foreground drop-shadow-sm" }, "Generate professional legal bills with automated Web3 payments")
+                                ),
+                                React.createElement(CardContent, null, React.createElement(BillForm, { showToast: showToast }))
+                            )
+                        )
+                    )
+                ),
+                toast && React.createElement(Toast, {
+                    message: toast.message,
+                    type: toast.type,
+                    onClose: hideToast
+                })
+            );
+        };
+        
+        // --- Auth Utilities and Pages (client-side demo) ---
+        const AuthService = (() => {
+            const USERS_KEY = 'auth_users';
+            const SESSION_KEY = 'auth_session';
+            const enc = new TextEncoder();
+            const toHex = (buf) => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+            const rndHex = (n) => toHex(crypto.getRandomValues(new Uint8Array(n)));
+            const getUsers = () => { try { return JSON.parse(localStorage.getItem(USERS_KEY)||'[]'); } catch { return []; } };
+            const setUsers = (u) => localStorage.setItem(USERS_KEY, JSON.stringify(u));
+            const hash = async (pwd, salt) => toHex(await crypto.subtle.digest('SHA-256', enc.encode(pwd + ':' + salt)));
+            const setSession = (s, remember) => { try { sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(SESSION_KEY); (remember?localStorage:sessionStorage).setItem(SESSION_KEY, JSON.stringify(s)); } catch {} };
+            const getSession = () => { try { const raw = sessionStorage.getItem(SESSION_KEY)||localStorage.getItem(SESSION_KEY); if(!raw) return null; const s = JSON.parse(raw); if(!s.expiresAt || Date.now()>s.expiresAt) { sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(SESSION_KEY); return null; } return s; } catch { return null; } };
+            const clearSession = () => { try { sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(SESSION_KEY); } catch {} };
+            const register = async ({username,email,password}) => { email=(email||'').trim().toLowerCase(); username=(username||'').trim(); if(!username) throw new Error('Username is required'); if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Valid email is required'); if(!password||password.length<8) throw new Error('Password must be at least 8 characters'); const users=getUsers(); if(users.some(u=>u.email===email)) throw new Error('An account with this email already exists'); const salt=rndHex(16); const h=await hash(password,salt); const user={ id:rndHex(8), username, email, salt, hash:h, createdAt:Date.now() }; users.push(user); setUsers(users); return { id:user.id, username:user.username, email:user.email }; };
+            const login = async ({email,password}) => { email=(email||'').trim().toLowerCase(); const user=getUsers().find(u=>u.email===email); if(!user) throw new Error('Invalid credentials'); const h=await hash(password||'', user.salt); if(h!==user.hash) throw new Error('Invalid credentials'); return { id:user.id, username:user.username, email:user.email }; };
+            return { register, login, setSession, getSession, clearSession };
+        })();
+
+        const PasswordStrengthMeter = ({ password }) => {
+            const score = (() => { let s=0; if(!password) return 0; if(password.length>=8) s++; if(/[A-Z]/.test(password)&&/[a-z]/.test(password)) s++; if(/[0-9]/.test(password)) s++; if(/[^A-Za-z0-9]/.test(password)) s++; if(password.length>=12) s++; return Math.min(s,4); })();
+            const colors=['bg-gray-400','bg-gray-500','bg-gray-600','bg-gray-700','bg-gray-800'];
+            const labels=['Very weak','Weak','Fair','Good','Strong'];
+            return React.createElement('div',{className:'mt-2'},
+                React.createElement('div',{className:'flex gap-1 h-2'},...[0,1,2,3].map(i=>React.createElement('div',{key:i,className:'flex-1 rounded '+(i<=score-1?colors[score]:'bg-gray-200')}))),
+                React.createElement('div',{className:'text-xs text-gray-700 mt-1'}, labels[score]||'Very weak')
+            );
+        };
+
+        const SignupPage = ({ onSwitch, onSignup }) => {
+            const { useState } = React;
+            const [username,setUsername]=useState('');
+            const [email,setEmail]=useState('');
+            const [password,setPassword]=useState('');
+            const [confirm,setConfirm]=useState('');
+            const [tos,setTos]=useState(false);
+            const [error,setError]=useState('');
+            const [loading,setLoading]=useState(false);
+            const submit = async (e) => { 
+                e.preventDefault(); 
+                setError(''); 
+                if(!username.trim()) return setError('Please enter a username'); 
+                if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError('Please enter a valid email'); 
+                if(!password||password.length<8) return setError('Password must be at least 8 characters'); 
+                if(password!==confirm) return setError('Passwords do not match'); 
+                if(!tos) return setError('You must accept the Terms of Service'); 
+                setLoading(true); 
+                try{ 
+                    await AuthService.register({username,email,password}); 
+                    await onSignup({username,email,password}); 
+                }catch(err){ 
+                    setError((err && err.message)||'Signup failed'); 
+                }finally{ 
+                    setLoading(false); 
+                } 
+            };
+            return React.createElement('div',{className:'min-h-screen bg-white flex items-center justify-center p-4'},
+                React.createElement('div',{className:'w-full max-w-md'},
+                    React.createElement(Card,{className:'bg-white border border-gray-300 text-gray-900 shadow-sm'},
+                        React.createElement(CardHeader,null, React.createElement(CardTitle,{className:'text-gray-900'},'Create your account')),
+                        React.createElement(CardContent,null,
+                            React.createElement('form',{onSubmit:submit,className:'space-y-4'},
+                                React.createElement('div',null, React.createElement(Label,{htmlFor:'su-username', className:'text-gray-800'},'Username'), React.createElement(Input,{id:'su-username',value:username,onChange:e=>setUsername(e.target.value),placeholder:'Your name', className:'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus-visible:ring-black focus-visible:bg-white'})),
+                                React.createElement('div',null, React.createElement(Label,{htmlFor:'su-email', className:'text-gray-800'},'Email'), React.createElement(Input,{id:'su-email',type:'email',value:email,onChange:e=>setEmail(e.target.value),placeholder:'you@example.com', className:'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus-visible:ring-black focus-visible:bg-white'})),
+                                React.createElement('div',null, React.createElement(Label,{htmlFor:'su-password', className:'text-gray-800'},'Password'), React.createElement(Input,{id:'su-password',type:'password',value:password,onChange:e=>setPassword(e.target.value),placeholder:'••••••••', className:'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus-visible:ring-black focus-visible:bg-white'}), React.createElement(PasswordStrengthMeter,{password})),
+                                React.createElement('div',null, React.createElement(Label,{htmlFor:'su-confirm', className:'text-gray-800'},'Confirm Password'), React.createElement(Input,{id:'su-confirm',type:'password',value:confirm,onChange:e=>setConfirm(e.target.value),placeholder:'••••••••', className:'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus-visible:ring-black focus-visible:bg-white'})),
+                                React.createElement('label',{className:'flex items-center gap-2 text-sm text-gray-700'}, React.createElement('input',{type:'checkbox',checked:tos,onChange:e=>setTos(e.target.checked)}), React.createElement('span',null,'I agree to the Terms of Service')),
+                                error && React.createElement('div',{className:'text-sm text-gray-800 bg-gray-100 border border-gray-300 rounded-md p-2'}, '⚠ ' + error),
+                                React.createElement('div',{className:'flex flex-col gap-2'},
+                                    React.createElement(Button,{disabled:loading,type:'submit', className:'bg-black text-white hover:bg-gray-900 border-black focus-visible:ring-black'}, loading?'Creating account...':'Sign up'),
+                                    React.createElement('button',{type:'button',className:'text-sm text-gray-800 hover:text-black underline-offset-4 hover:underline',onClick:()=>onSwitch('login')}, 'Already have an account? Log in')
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        };
+
+        const LoginPage = ({ onSwitch, onLogin, onForgot }) => {
+            const { useState } = React;
+            const [email,setEmail]=useState('');
+            const [password,setPassword]=useState('');
+            const [remember,setRemember]=useState(false);
+            const [error,setError]=useState('');
+            const [loading,setLoading]=useState(false);
+            const submit = async (e) => { 
+                e.preventDefault(); 
+                setError(''); 
+                if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError('Please enter a valid email'); 
+                if(!password) return setError('Please enter your password'); 
+                setLoading(true); 
+                try{ 
+                    await onLogin({email,password,remember}); 
+                }catch(err){ 
+                    setError((err && err.message)||'Login failed'); 
+                }finally{ 
+                    setLoading(false); 
+                } 
+            };
+            return React.createElement('div',{className:'min-h-screen bg-white flex items-center justify-center p-4'},
+                React.createElement('div',{className:'w-full max-w-md'},
+                    React.createElement(Card,{className:'bg-white border border-gray-300 text-gray-900 shadow-sm'},
+                        React.createElement(CardHeader,null, React.createElement(CardTitle,{className:'text-gray-900'},'Welcome back')),
+                        React.createElement(CardContent,null,
+                            React.createElement('form',{onSubmit:submit,className:'space-y-4'},
+                                React.createElement('div',null, React.createElement(Label,{htmlFor:'li-email', className:'text-gray-800'},'Email'), React.createElement(Input,{id:'li-email',type:'email',value:email,onChange:e=>setEmail(e.target.value),placeholder:'you@example.com', className:'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus-visible:ring-black focus-visible:bg-white'})),
+                                React.createElement('div',null, React.createElement(Label,{htmlFor:'li-password', className:'text-gray-800'},'Password'), React.createElement(Input,{id:'li-password',type:'password',value:password,onChange:e=>setPassword(e.target.value),placeholder:'••••••••', className:'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus-visible:ring-black focus-visible:bg-white'})),
+                                React.createElement('label',{className:'flex items-center gap-2 text-sm text-gray-700'}, React.createElement('input',{type:'checkbox',checked:remember,onChange:e=>setRemember(e.target.checked)}), React.createElement('span',null,'Remember me')),
+                                error && React.createElement('div',{className:'text-sm text-gray-800 bg-gray-100 border border-gray-300 rounded-md p-2'}, '⚠ ' + error),
+                                React.createElement('div',{className:'flex flex-col gap-2'},
+                                    React.createElement(Button,{disabled:loading,type:'submit', className:'bg-black text-white hover:bg-gray-900 border-black focus-visible:ring-black'}, loading?'Signing in...':'Log in'),
+                                    React.createElement('div',{className:'flex items-center justify-between'},
+                                        React.createElement('button',{type:'button',className:'text-sm text-gray-800 hover:text-black underline-offset-4 hover:underline',onClick:()=>onSwitch('signup')}, 'Create account'),
+                                        React.createElement('button',{type:'button',className:'text-sm text-gray-700 hover:text-black underline-offset-4 hover:underline',onClick:onForgot}, 'Forgot password?')
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        };
+
+        const Root = () => {
+            const { useState, useEffect } = React;
+            const [isAuthenticated,setIsAuthenticated]=useState(false);
+            const [authView,setAuthView]=useState('login');
+            useEffect(()=>{ const s=AuthService.getSession(); if(s&&s.user){ setIsAuthenticated(true);} },[]);
+            const handleSignup = async ({username,email,password}) => {
+                const user = await AuthService.login({ email, password });
+                const session = { token: Math.random().toString(36).slice(2), user, expiresAt: Date.now()+7*24*60*60*1000 };
+                AuthService.setSession(session, true);
+                setIsAuthenticated(true);
+            };
+            const handleLogin = async ({email,password,remember}) => {
+                const user = await AuthService.login({ email, password });
+                const session = { token: Math.random().toString(36).slice(2), user, expiresAt: Date.now() + (remember?7*24*60*60*1000:4*60*60*1000) };
+                AuthService.setSession(session, remember);
+                setIsAuthenticated(true);
+            };
+            const handleForgot = () => { alert('Password reset link sent (demo)'); };
+            if(!isAuthenticated){
+                return authView==='signup'
+                    ? React.createElement(SignupPage,{ onSwitch:setAuthView, onSignup:handleSignup })
+                    : React.createElement(LoginPage,{ onSwitch:setAuthView, onLogin:handleLogin, onForgot:handleForgot });
+            }
+            return React.createElement(App);
+        };
+
+        const root = ReactDOM.createRoot ? ReactDOM.createRoot(document.getElementById('root')) : null;
+        if (root) {
+            root.render(React.createElement(Root));
+        } else {
+            ReactDOM.render(React.createElement(Root), document.getElementById('root'));
+        }
+    </script>
+
+    <!-- Transaction Status Modal -->
+    <div id="transactionStatus" class="fixed inset-0 hidden flex items-center justify-center bg-black/70 z-50 p-4">
+        <div class="status-content card w-full max-w-md text-center p-6">
+            <div id="statusMessage" class="text-sm text-gray-700">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <!-- All functionality is embedded in this HTML file -->
+</body>
+</html>
