@@ -170,7 +170,7 @@ class VATEngine {
     }
 
     // Services to certain NPOs
-    if (context.clientType === 'npo' && this.isQualifyingNPO(context)) {
+    if (context.clientType === 'npo' && this.isQualifyingNPO()) {
       return {
         isExempt: true,
         code: 'NPO_EXEMPT',
@@ -179,7 +179,7 @@ class VATEngine {
     }
 
     // International services (if applicable)
-    if (this.isInternationalService(context)) {
+    if (this.isInternationalService()) {
       return {
         isExempt: true,
         code: 'INTERNATIONAL',
@@ -284,7 +284,7 @@ class VATEngine {
   /**
    * Checks if NPO qualifies for VAT exemption
    */
-  private isQualifyingNPO(context: VATContext): boolean {
+  private isQualifyingNPO(): boolean {
     // This would typically check against a database of qualifying NPOs
     // For now, return false as most legal services to NPOs are still taxable
     return false
@@ -293,7 +293,7 @@ class VATEngine {
   /**
    * Checks if service qualifies as international (zero-rated)
    */
-  private isInternationalService(context: VATContext): boolean {
+  private isInternationalService(): boolean {
     // This would check if the service is provided to non-residents
     // or relates to international matters
     return false

@@ -260,12 +260,22 @@ export class ComplianceEngine {
   private checkForumJurisdiction(context: ComplianceContext): ComplianceResult {
     const { forum } = context
     
-    if (!forum.isValidJurisdiction) {
+    if (forum.confidence === 'low') {
       return {
         ruleId: 'forum-jurisdiction',
-        status: 'non-compliant',
-        message: `Invalid jurisdiction: ${forum.reasoning}`,
-        recommendation: `Consider ${forum.suggestedForum} instead`,
+        status: 'warning',
+        message: `Low confidence in jurisdiction: ${forum.reasoning}`,
+        recommendation: 'Review case details and consider alternative forum',
+        references: ['Magistrates Courts Act 32 of 1944']
+      }
+    }
+    
+    if (forum.warnings && forum.warnings.length > 0) {
+      return {
+        ruleId: 'forum-jurisdiction',
+        status: 'warning',
+        message: `Forum warnings: ${forum.warnings.join(', ')}`,
+        recommendation: 'Review warnings and consider implications',
         references: ['Magistrates Courts Act 32 of 1944']
       }
     }

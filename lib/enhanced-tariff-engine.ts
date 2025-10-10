@@ -154,7 +154,7 @@ export class EnhancedTariffEngine {
     this.applyBillTypeConstraints(tariffItem, context.billType, complianceIssues, recommendations)
     
     // Calculate base amount
-    let effectiveRate = tariffItem.rate
+    const effectiveRate = tariffItem.rate
     let quantity = lineItem.quantity
     
     // Apply minimum units if specified

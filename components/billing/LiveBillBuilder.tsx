@@ -1,19 +1,16 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { 
   Plus, 
   Trash2, 
   Calculator, 
-  Clock, 
   FileText, 
   Users, 
   Car,
@@ -22,10 +19,11 @@ import {
   DollarSign
 } from 'lucide-react'
 import { tariffEngine, BillItem, BillCalculation } from '@/lib/tariff-engine'
-import { courtTypes, allTariffs } from '@/data/sa-tariffs'
-import { formatCurrency, formatTime } from '@/lib/utils'
+import { courtTypes } from '@/data/sa-tariffs'
+import { formatCurrency } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
-import { localStorageService } from '@/lib/localStorage'
+import { localStorageService, Bill } from '@/lib/localStorage'
+import { DictationInput } from '@/components/dictation/DictationButton'
 
 interface Matter {
   id: string
@@ -42,7 +40,7 @@ export function LiveBillBuilder() {
   const [calculation, setCalculation] = useState<BillCalculation | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showQuickAdd, setShowQuickAdd] = useState(true)
-  const [currentBill, setCurrentBill] = useState<any>(null)
+  const [currentBill, setCurrentBill] = useState<Bill | null>(null)
   const [saving, setSaving] = useState(false)
 
   // Form state for adding new items
@@ -65,26 +63,28 @@ export function LiveBillBuilder() {
     })
   }, [])
 
-  // Calculate totals whenever items change
-  useEffect(() => {
-    if (billItems.length > 0) {
-      const calc = tariffEngine.calculateBill(billItems)
-      setCalculation(calc)
-      // Auto-save bill when calculation changes
-      saveBillToStorage(calc)
-    } else {
-      setCalculation(null)
+  // Define functions before they are used
+  const createNewBill = useCallback(async (matterId: string) => {
+    try {
+      const newBill = await localStorageService.createBill({
+        matter_id: matterId,
+        bill_number: `BILL-${Date.now()}`,
+        status: 'draft',
+        subtotal_fees: 0,
+        subtotal_disbursements: 0,
+        subtotal_counsel: 0,
+        vat_amount: 0,
+        total_amount: 0,
+        created_by: profile?.id
+      })
+      setCurrentBill(newBill)
+      setBillItems([])
+    } catch (error) {
+      console.error('Error creating new bill:', error)
     }
-  }, [billItems])
+  }, [profile?.id])
 
-  // Load existing bill when matter changes
-  useEffect(() => {
-    if (selectedMatter) {
-      loadExistingBill(selectedMatter.id)
-    }
-  }, [selectedMatter])
-
-  const loadExistingBill = async (matterId: string) => {
+  const loadExistingBill = useCallback(async (matterId: string) => {
     try {
       const bills = await localStorageService.getBills(matterId)
       const activeBill = bills.find(bill => bill.status === 'draft') || bills[0]
@@ -117,29 +117,9 @@ export function LiveBillBuilder() {
       console.error('Error loading existing bill:', error)
       await createNewBill(matterId)
     }
-  }
+  }, [profile?.id, createNewBill])
 
-  const createNewBill = async (matterId: string) => {
-    try {
-      const newBill = await localStorageService.createBill({
-        matter_id: matterId,
-        bill_number: `BILL-${Date.now()}`,
-        status: 'draft',
-        subtotal_fees: 0,
-        subtotal_disbursements: 0,
-        subtotal_counsel: 0,
-        vat_amount: 0,
-        total_amount: 0,
-        created_by: profile?.id
-      })
-      setCurrentBill(newBill)
-      setBillItems([])
-    } catch (error) {
-      console.error('Error creating new bill:', error)
-    }
-  }
-
-  const saveBillToStorage = async (calculation: BillCalculation) => {
+  const saveBillToStorage = useCallback(async (calculation: BillCalculation) => {
     if (!currentBill || saving) return
     
     try {
@@ -199,7 +179,26 @@ export function LiveBillBuilder() {
     } finally {
       setSaving(false)
     }
-  }
+  }, [currentBill, saving, billItems])
+
+  // Calculate bill when items change
+  useEffect(() => {
+    if (billItems.length > 0) {
+      const calc = tariffEngine.calculateBill(billItems)
+      setCalculation(calc)
+      // Auto-save bill when calculation changes
+      saveBillToStorage(calc)
+    } else {
+      setCalculation(null)
+    }
+  }, [billItems, saveBillToStorage])
+
+  // Load existing bill when matter changes
+  useEffect(() => {
+    if (selectedMatter) {
+      loadExistingBill(selectedMatter.id)
+    }
+  }, [selectedMatter, loadExistingBill])
 
   // Get available tariff items for search
   const availableItems = useMemo(() => {
@@ -388,10 +387,10 @@ export function LiveBillBuilder() {
             <CardContent className="space-y-4">
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <Input
+                  <DictationInput
                     placeholder="Search for tariff items..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(value) => setSearchTerm(value)}
                   />
                 </div>
                 <Button
@@ -438,11 +437,10 @@ export function LiveBillBuilder() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
+                  <DictationInput
                     placeholder="Custom work description"
                     value={newItem.description}
-                    onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                    onChange={(value) => setNewItem({ ...newItem, description: value })}
                   />
                 </div>
                 <div>

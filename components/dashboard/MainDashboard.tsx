@@ -19,15 +19,18 @@ import {
   Settings,
   Bell
 } from 'lucide-react'
+import { Mic, MicOff } from 'lucide-react'
 import { LiveBillBuilder } from '@/components/billing/LiveBillBuilder'
 import { OCRIntake } from '@/components/ocr/OCRIntake'
 import { OpposingPartyWorkflow } from '@/components/collaboration/OpposingPartyWorkflow'
 import { SubscriptionManager } from '@/components/billing/SubscriptionManager'
+import MagistratesTariffButtons from '@/components/billing/MagistratesTariffButtons'
 import BillWizard from '@/components/BillWizard'
 import { BillItem } from '@/lib/tariff-engine'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { localStorageService, Matter as LocalMatter, Bill as LocalBill } from '@/lib/localStorage'
+import { useDictation } from '@/components/dictation/DictationProvider'
 
 interface Matter {
   id: string
@@ -42,19 +45,20 @@ interface Matter {
 }
 
 export function MainDashboard() {
-  const { profile, signOut } = useAuth()
+  const { profile, firm, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [selectedMatter, setSelectedMatter] = useState<Matter | null>(null)
   const [billItems, setBillItems] = useState<BillItem[]>([])
   const [matters, setMatters] = useState<Matter[]>([])
   const [loading, setLoading] = useState(true)
+  const { enabled, setEnabled, isSupported } = useDictation()
 
   // Load matters from localStorage
   useEffect(() => {
     const loadMatters = async () => {
       try {
         setLoading(true)
-        const localMatters = await localStorageService.getMatters(profile?.firm?.id)
+        const localMatters = await localStorageService.getMatters(firm?.id)
         const bills = await localStorageService.getBills()
         
         // Transform localStorage matters to dashboard format
@@ -71,11 +75,11 @@ export function MainDashboard() {
               id: matter.id,
               title: matter.matter_description || `${matter.plaintiff || 'Unknown'} v ${matter.defendant || 'Unknown'}`,
               courtType: matter.court_type_id || 'HC',
-              scale: matter.scale,
+              scale: matter.scale || 'A',
               parties: `${matter.plaintiff || 'Unknown'} vs ${matter.defendant || 'Unknown'}`,
-              status: matter.status as 'active' | 'draft' | 'completed',
+              status: (matter.status as 'active' | 'draft' | 'completed') || 'draft',
               billTotal,
-              lastActivity: new Date(matter.updated_at),
+              lastActivity: new Date(matter.updated_at || matter.created_at),
               itemCount
             }
           })
@@ -84,8 +88,8 @@ export function MainDashboard() {
         setMatters(transformedMatters)
         
         // If no matters exist, create some sample data
-        if (transformedMatters.length === 0 && profile?.firm?.id) {
-          await createSampleMatters(profile.firm.id)
+        if (transformedMatters.length === 0 && firm?.id) {
+          await createSampleMatters(firm.id)
         }
       } catch (error) {
         console.error('Error loading matters:', error)
@@ -94,10 +98,10 @@ export function MainDashboard() {
       }
     }
 
-    if (profile?.firm?.id) {
+    if (firm?.id) {
       loadMatters()
     }
-  }, [profile?.firm?.id])
+  }, [firm?.id])
 
   const createSampleMatters = async (firmId: string) => {
     try {
@@ -136,11 +140,11 @@ export function MainDashboard() {
         id: matter.id,
         title: matter.matter_description || `${matter.plaintiff || 'Unknown'} v ${matter.defendant || 'Unknown'}`,
         courtType: matter.court_type_id || 'HC',
-        scale: matter.scale,
+        scale: matter.scale || 'A',
         parties: `${matter.plaintiff || 'Unknown'} vs ${matter.defendant || 'Unknown'}`,
-        status: matter.status as 'active' | 'draft' | 'completed',
+        status: (matter.status as 'active' | 'draft' | 'completed') || 'draft',
         billTotal: 0,
-        lastActivity: new Date(matter.updated_at),
+        lastActivity: new Date(matter.updated_at || matter.created_at),
         itemCount: 0
       }))
       
@@ -201,6 +205,15 @@ export function MainDashboard() {
               </Button>
               <Button variant="ghost" size="sm">
                 <Settings className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEnabled(!enabled)}
+                disabled={!isSupported}
+                title={isSupported ? (enabled ? 'Disable Dictation' : 'Enable Dictation') : 'Dictation not supported'}
+              >
+                {enabled ? <Mic className="h-4 w-4 text-green-600" /> : <MicOff className="h-4 w-4 text-gray-500" />}
               </Button>
               <div className="text-sm">
                 <div className="font-medium">{profile?.full_name || 'User'}</div>
@@ -361,11 +374,22 @@ export function MainDashboard() {
           </TabsContent>
 
           <TabsContent value="wizard">
-            <BillWizard />
+            <BillWizard 
+              onComplete={(data) => {
+                console.log('Bill wizard completed:', data)
+                setActiveTab('overview')
+              }}
+              onCancel={() => {
+                setActiveTab('overview')
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="billing">
-            <LiveBillBuilder />
+            <div className="space-y-6">
+              <LiveBillBuilder />
+              <MagistratesTariffButtons />
+            </div>
           </TabsContent>
 
           <TabsContent value="ocr">

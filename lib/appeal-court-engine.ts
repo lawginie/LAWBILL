@@ -325,7 +325,7 @@ class AppealCourtEngine {
       if (calculation.roundingAdjustment > 0) {
         complianceNotes.push(`Time rounded up by ${calculation.roundingAdjustment.toFixed(2)} minutes`)
       }
-    } else if (itemData.pageCount && itemData.pageCount > 0) {
+    } else if (itemData.pageCount && itemData.pageCount > 0 && 'perPage' in rates) {
       billingMethod = 'per-page'
       const complexityMultiplier = this.getComplexityMultiplier(context.complexityLevel)
       const calculation = this.calculatePageBasedBilling(
@@ -365,7 +365,7 @@ class AppealCourtEngine {
       billingMethod,
       timeSpent: itemData.timeSpent,
       pageCount: itemData.pageCount,
-      rate: billingMethod === 'quarter-hour' ? rates.perQuarterHour : rates.perPage,
+      rate: billingMethod === 'quarter-hour' ? rates.perQuarterHour : ('perPage' in rates ? rates.perPage : rates.perQuarterHour),
       amount,
       isCompliant,
       complianceNotes,

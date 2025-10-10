@@ -1,5 +1,6 @@
 import { BillItem, BillCalculation } from './tariff-engine'
 import { formatCurrency, formatDate } from './utils'
+import { professionalBillFormatter, ProfessionalBillData, BillFormattingOptions } from './professional-bill-formatter'
 
 export interface ExportData {
   matter: {
@@ -12,6 +13,9 @@ export interface ExportData {
     firmName: string
     firmAddress: string
     firmVAT?: string
+    practiceNumber?: string
+    telephoneNumber?: string
+    emailAddress?: string
   }
   bill: {
     id: string
@@ -19,6 +23,19 @@ export interface ExportData {
     calculation: BillCalculation
     dateGenerated: Date
     billNumber: string
+    billType?: string
+    costsOrder?: string
+    taxationDate?: Date
+  }
+  client?: {
+    name: string
+    address?: string
+    reference?: string
+  }
+  opposingParty?: {
+    name: string
+    attorney?: string
+    address?: string
   }
   taxation?: {
     objections: Array<{
@@ -32,7 +49,7 @@ export interface ExportData {
 }
 
 export interface ExportOptions {
-  format: 'pdf' | 'docx'
+  format: 'pdf' | 'docx' | 'html'
   template: 'standard' | 'detailed' | 'taxation'
   includeVAT: boolean
   includeSource: boolean
@@ -50,10 +67,86 @@ export class ExportEngine {
   }
 
   async generateBill(data: ExportData, options: ExportOptions): Promise<Blob> {
-    if (options.format === 'pdf') {
-      return this.generatePDF(data, options)
-    } else {
-      return this.generateDOCX(data, options)
+    switch (options.format) {
+      case 'pdf':
+        return this.generatePDF(data, options)
+      case 'docx':
+        return this.generateDOCX(data, options)
+      case 'html':
+        return this.generateHTML(data, options)
+      default:
+        throw new Error(`Unsupported format: ${options.format}`)
+    }
+  }
+
+  async generateProfessionalBill(data: ExportData, options: ExportOptions): Promise<Blob> {
+    const professionalData = this.convertToProfessionalBillData(data)
+    const formattingOptions = this.convertToFormattingOptions(options)
+    
+    switch (options.format) {
+      case 'html':
+        const htmlContent = professionalBillFormatter.generateHTMLBill(professionalData, formattingOptions)
+        return new Blob([htmlContent], { type: 'text/html' })
+      case 'pdf':
+        // For now, generate HTML and let the browser handle PDF conversion
+        const htmlForPdf = professionalBillFormatter.generateHTMLBill(professionalData, formattingOptions)
+        return new Blob([htmlForPdf], { type: 'text/html' })
+      case 'docx':
+        const textContent = professionalBillFormatter.generateProfessionalBill(professionalData, formattingOptions)
+        return new Blob([textContent], { type: 'text/plain' })
+      default:
+        const defaultContent = professionalBillFormatter.generateProfessionalBill(professionalData, formattingOptions)
+        return new Blob([defaultContent], { type: 'text/plain' })
+    }
+  }
+
+  private convertToProfessionalBillData(data: ExportData): ProfessionalBillData {
+    return {
+      matter: {
+        id: data.matter.id,
+        title: data.matter.title,
+        courtType: this.getCourtName(data.matter.courtType),
+        caseNumber: data.matter.caseNumber,
+        parties: data.matter.parties,
+        attorney: data.matter.attorney,
+        firmName: data.matter.firmName,
+        firmAddress: data.matter.firmAddress,
+        firmVAT: data.matter.firmVAT,
+        practiceNumber: data.matter.practiceNumber,
+        telephoneNumber: data.matter.telephoneNumber,
+        emailAddress: data.matter.emailAddress
+      },
+      bill: {
+        id: data.bill.id,
+        items: data.bill.items,
+        calculation: data.bill.calculation,
+        dateGenerated: data.bill.dateGenerated,
+        billNumber: data.bill.billNumber,
+        billType: (data.bill.billType as 'party-and-party' | 'attorney-and-client' | 'own-client') || 'party-and-party',
+        costsOrder: data.bill.costsOrder,
+        taxationDate: data.bill.taxationDate
+      },
+      client: {
+        name: data.client?.name || 'Client Name',
+        address: data.client?.address,
+        reference: data.client?.reference
+      },
+      opposingParty: data.opposingParty ? {
+        name: data.opposingParty.name,
+        attorney: data.opposingParty.attorney,
+        address: data.opposingParty.address
+      } : undefined
+    }
+  }
+
+  private convertToFormattingOptions(options: ExportOptions): BillFormattingOptions {
+    return {
+      includeVAT: options.includeVAT,
+      includeSource: options.includeSource,
+      showItemNumbers: true,
+      groupByCategory: true,
+      includeCompliance: options.template === 'taxation',
+      watermark: options.watermark
     }
   }
 
@@ -67,15 +160,15 @@ export class ExportEngine {
     return new Blob([mockPDFContent], { type: 'application/pdf' })
   }
 
+  private async generateHTML(data: ExportData, options: ExportOptions): Promise<Blob> {
+    const htmlContent = this.createHTMLContent(data, options)
+    return new Blob([htmlContent], { type: 'text/html' })
+  }
+
   private async generateDOCX(data: ExportData, options: ExportOptions): Promise<Blob> {
-    // Using docxtemplater for DOCX generation
-    const docContent = this.createDOCXContent(data, options)
-    
-    // In a real implementation, you would use docxtemplater here
-    // For now, we'll create a mock DOCX blob
-    return new Blob([docContent], { 
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-    })
+    // Mock implementation - in a real app, you'd use a library like docx
+    const content = this.createDOCXContent(data, options)
+    return new Blob([content], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
   }
 
   private createPDFDefinition(data: ExportData, options: ExportOptions) {
@@ -200,12 +293,12 @@ export class ExportEngine {
 
     items.forEach(item => {
       const row = [
-        { text: formatDate(item.date), style: 'tableCell' },
+        { text: item.date ? formatDate(item.date) : '-', style: 'tableCell' },
         { text: item.tariffItem?.label || 'Custom', style: 'tableCell' },
         { text: item.description, style: 'tableCell' },
         { text: item.units.toString(), style: 'tableCell', alignment: 'right' },
-        { text: formatCurrency(item.rate), style: 'tableCell', alignment: 'right' },
-        { text: formatCurrency(item.amountExVAT), style: 'tableCell', alignment: 'right' }
+        { text: formatCurrency(item.rate || item.rateApplied), style: 'tableCell', alignment: 'right' },
+        { text: formatCurrency(item.amountExVAT || item.amountExVat), style: 'tableCell', alignment: 'right' }
       ]
       
       if (options.includeVAT) {
@@ -238,17 +331,17 @@ export class ExportEngine {
 
   private createTotalsSection(calculation: BillCalculation, options: ExportOptions) {
     const totals = [
-      ['Professional Fees:', formatCurrency(calculation.professionalFees)],
-      ['Disbursements:', formatCurrency(calculation.disbursements)],
-      ['Counsel Fees:', formatCurrency(calculation.counselFees)]
+      ['Professional Fees:', formatCurrency(calculation.professionalFees || 0)],
+      ['Disbursements:', formatCurrency(calculation.disbursements || 0)],
+      ['Counsel Fees:', formatCurrency(calculation.counselFees || 0)]
     ]
 
     if (options.includeVAT) {
-      totals.push(['Subtotal (Ex VAT):', formatCurrency(calculation.subtotalExVAT)])
-      totals.push(['VAT:', formatCurrency(calculation.vat)])
+      totals.push(['Subtotal (Ex VAT):', formatCurrency(calculation.subtotalExVAT || 0)])
+      totals.push(['VAT:', formatCurrency(calculation.vat || 0)])
     }
 
-    totals.push(['TOTAL:', formatCurrency(calculation.total)])
+    totals.push(['TOTAL:', formatCurrency(calculation.total || 0)])
 
     return {
       table: {
@@ -306,19 +399,19 @@ ${matter.attorney}
     table += '='.repeat(80) + '\n'
     
     items.forEach(item => {
-      table += `${formatDate(item.date)}\t\t${item.tariffItem?.label || 'Custom'}\t\t${item.description}\t\t${item.units}\t\t${formatCurrency(item.rate)}\t\t${formatCurrency(item.amountExVAT)}\n`
+      table += `${item.date ? formatDate(item.date) : '-'}\t\t${item.tariffItem?.label || 'Custom'}\t\t${item.description}\t\t${item.units}\t\t${formatCurrency(item.rate || item.rateApplied)}\t\t${formatCurrency(item.amountExVAT || item.amountExVat)}\n`
     })
     
     table += '='.repeat(80) + '\n'
-    table += `Professional Fees:\t\t\t\t\t\t${formatCurrency(calculation.professionalFees)}\n`
-    table += `Disbursements:\t\t\t\t\t\t${formatCurrency(calculation.disbursements)}\n`
-    table += `Counsel Fees:\t\t\t\t\t\t${formatCurrency(calculation.counselFees)}\n`
+    table += `Professional Fees:\t\t\t\t\t\t${formatCurrency(calculation.professionalFees || 0)}\n`
+    table += `Disbursements:\t\t\t\t\t\t${formatCurrency(calculation.disbursements || 0)}\n`
+    table += `Counsel Fees:\t\t\t\t\t\t${formatCurrency(calculation.counselFees || 0)}\n`
     
     if (options.includeVAT) {
-      table += `VAT:\t\t\t\t\t\t${formatCurrency(calculation.vat)}\n`
+      table += `VAT:\t\t\t\t\t\t${formatCurrency(calculation.vat || 0)}\n`
     }
     
-    table += `TOTAL:\t\t\t\t\t\t${formatCurrency(calculation.total)}\n`
+    table += `TOTAL:\t\t\t\t\t\t${formatCurrency(calculation.total || 0)}\n`
     
     return table
   }
@@ -327,10 +420,82 @@ ${matter.attorney}
     // This would be actual PDF binary content in a real implementation
     return `%PDF-1.4
 Mock PDF content for ${data.matter.title}
-Bill Total: ${formatCurrency(data.bill.calculation.total)}
+Bill Total: ${formatCurrency(data.bill.calculation.total || 0)}
 Generated: ${formatDate(data.bill.dateGenerated)}
 Format: ${options.format}
 Template: ${options.template}`
+  }
+
+  private createHTMLContent(data: ExportData, options: ExportOptions): string {
+    const { matter, bill } = data
+    const { calculation, items } = bill
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Bill of Costs - ${matter.title}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .matter-info { margin-bottom: 20px; }
+          .bill-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .bill-table th, .bill-table td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+          .bill-table th { background-color: #f5f5f5; }
+          .totals { margin-top: 20px; }
+          .total-row { font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>BILL OF COSTS</h1>
+          <h2>${matter.title}</h2>
+        </div>
+        
+        <div class="matter-info">
+          <p><strong>Case Number:</strong> ${matter.caseNumber || 'N/A'}</p>
+          <p><strong>Court:</strong> ${this.getCourtName(matter.courtType)}</p>
+          <p><strong>Parties:</strong> ${matter.parties}</p>
+          <p><strong>Attorney:</strong> ${matter.attorney}</p>
+          <p><strong>Bill Number:</strong> ${bill.billNumber}</p>
+          <p><strong>Date:</strong> ${formatDate(bill.dateGenerated)}</p>
+        </div>
+        
+        <table class="bill-table">
+          <thead>
+            <tr>
+              <th>Tariff Item</th>
+              <th>Description</th>
+              <th>Units</th>
+              <th>Rate</th>
+              <th>Amount Ex VAT</th>
+              <th>VAT</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(item => `
+              <tr>
+                <td>${item.tariffItemId}</td>
+                <td>${item.description}</td>
+                <td>${item.units}</td>
+                <td>${formatCurrency(item.rateApplied)}</td>
+                <td>${formatCurrency(item.amountExVat)}</td>
+                <td>${formatCurrency(item.vat)}</td>
+                <td>${formatCurrency(item.totalAmount)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div class="totals">
+          <p><strong>Total Ex VAT:</strong> ${formatCurrency(calculation.totalExVat || 0)}</p>
+          ${options.includeVAT ? `<p><strong>VAT:</strong> ${formatCurrency(calculation.totalVat || 0)}</p>` : ''}
+          <p class="total-row"><strong>Grand Total:</strong> ${formatCurrency(calculation.grandTotal || 0)}</p>
+        </div>
+      </body>
+      </html>
+    `
   }
 
   private getCourtName(courtType: string): string {

@@ -112,7 +112,14 @@ export function BillExporter({
     setIsPreviewing(true)
     try {
       const exportData = createExportData()
-      const url = await exportEngine.previewBill(exportData, exportOptions)
+      
+      // Use professional bill formatter for better legal formatting
+      const blob = await exportEngine.generateProfessionalBill(exportData, {
+        ...exportOptions,
+        format: 'html' // Always use HTML for preview
+      })
+      
+      const url = URL.createObjectURL(blob)
       setPreviewUrl(url)
       
       // Open preview in new window
@@ -136,7 +143,18 @@ export function BillExporter({
       const exportData = createExportData()
       const filename = customFilename || `${matterTitle.replace(/[^a-zA-Z0-9]/g, '_')}_bill`
       
-      await exportEngine.downloadBill(exportData, exportOptions, filename)
+      // Use professional bill formatter for proper legal document formatting
+      const blob = await exportEngine.generateProfessionalBill(exportData, exportOptions)
+      const url = URL.createObjectURL(blob)
+      
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${filename}.${exportOptions.format}`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      URL.revokeObjectURL(url)
       
       // Add to export history
       const newExport = {
@@ -288,15 +306,15 @@ export function BillExporter({
             </div>
             <div>
               <div className="text-sm text-gray-500">Professional Fees</div>
-              <div className="text-lg font-semibold">{formatCurrency(billCalculation.professionalFees)}</div>
+              <div className="text-lg font-semibold">{formatCurrency(billCalculation.professionalFees ?? 0)}</div>
             </div>
             <div>
               <div className="text-sm text-gray-500">Disbursements</div>
-              <div className="text-lg font-semibold">{formatCurrency(billCalculation.disbursements)}</div>
+              <div className="text-lg font-semibold">{formatCurrency(billCalculation.disbursements ?? 0)}</div>
             </div>
             <div>
               <div className="text-sm text-gray-500">Total Amount</div>
-              <div className="text-lg font-semibold text-blue-600">{formatCurrency(billCalculation.total)}</div>
+              <div className="text-lg font-semibold text-blue-600">{formatCurrency(billCalculation.total ?? 0)}</div>
             </div>
           </div>
         </CardContent>

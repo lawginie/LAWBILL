@@ -1,5 +1,5 @@
-import { allTariffs, counselFees, VAT_RATE, TariffItem, CourtTariff } from '@/data/sa-tariffs'
-import { roundToMinutes, calculateVAT } from '@/lib/utils'
+import { allTariffs, counselFees, VAT_RATE, TariffItem, CourtTariff } from '../data/sa-tariffs'
+import { roundToMinutes, calculateVAT } from './utils'
 
 export interface BillItem {
   id: string
@@ -13,6 +13,18 @@ export interface BillItem {
   source?: string
   createdBy: string
   createdAt: Date
+  // Additional properties for compatibility
+  category?: string
+  date?: Date
+  timeSpent?: string
+  rate?: number
+  amountIncVat?: number
+  tariffItem?: TariffItem
+  type?: 'fee' | 'disbursement' | 'counsel'
+  amount?: number
+  details?: string
+  scale?: string
+  amountExVAT?: number
 }
 
 export interface BillCalculation {
@@ -23,6 +35,15 @@ export interface BillCalculation {
   totalExVat: number
   totalVat: number
   grandTotal: number
+  // Additional properties for compatibility
+  subtotalExVAT?: number
+  vat?: number
+  total?: number
+  subtotal?: number
+  previousPayments?: number
+  disbursements?: number
+  counselFees?: number
+  professionalFees?: number
 }
 
 export class TariffEngine {

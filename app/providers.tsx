@@ -2,11 +2,14 @@
 
 import { type ReactNode } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { DictationProvider } from "@/components/dictation/DictationProvider";
 
 export function Providers(props: { children: ReactNode }) {
   return (
     <AuthProvider>
-      {props.children}
+      <DictationProvider language="en-ZA">
+        {props.children}
+      </DictationProvider>
     </AuthProvider>
   );
 }

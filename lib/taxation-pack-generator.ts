@@ -6,7 +6,6 @@
 
 import { BillItem } from './tariff-engine'
 import { VATCalculationResult } from './vat-engine'
-import { BillingScopeContext } from './billing-scope-engine'
 
 export interface TaxationPackContext {
   caseNumber: string
@@ -200,7 +199,7 @@ class TaxationPackGenerator {
       if (voucherReq.required) {
         const voucherItem: VoucherItem = {
           description: `${item.description} - ${voucherReq.type}`,
-          amount: item.amount,
+          amount: item.amount ?? 0,
           required: true,
           present: voucherReq.present,
           reference: `Line ${index + 1}`,
@@ -215,7 +214,7 @@ class TaxationPackGenerator {
       } else if (voucherReq.recommended) {
         optionalVouchers.push({
           description: `${item.description} - ${voucherReq.type}`,
-          amount: item.amount,
+          amount: item.amount ?? 0,
           required: false,
           present: voucherReq.present,
           reference: `Line ${index + 1}`,
@@ -250,7 +249,7 @@ class TaxationPackGenerator {
         contentious.push({
           lineNumber: index + 1,
           description: item.description,
-          amount: item.amount,
+          amount: item.amount ?? 0,
           issue: analysis.issue,
           justification: analysis.justification,
           riskLevel: analysis.riskLevel
@@ -406,7 +405,7 @@ IMPORTANT NOTES:
       }
     }
     
-    if (description.includes('travel') && item.amount > 500) {
+    if (description.includes('travel') && (item.amount ?? 0) > 500) {
       return {
         required: true,
         recommended: false,
@@ -417,7 +416,7 @@ IMPORTANT NOTES:
     }
     
     // Recommended vouchers
-    if (item.amount > 1000) {
+    if ((item.amount ?? 0) > 1000) {
       return {
         required: false,
         recommended: true,
@@ -444,7 +443,7 @@ IMPORTANT NOTES:
     const description = item.description.toLowerCase()
     
     // High-risk items
-    if (item.amount > 10000) {
+    if ((item.amount ?? 0) > 10000) {
       return {
         isContentious: true,
         issue: 'High amount may be challenged',

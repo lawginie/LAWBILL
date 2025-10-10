@@ -13,6 +13,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, AlertTriangle, XCircle, ArrowLeft, ArrowRight, Calendar, Scale, FileText, Users, DollarSign } from 'lucide-react'
 import { detectForum, ForumDetectionResult } from '@/lib/forum-detection'
 import { complianceEngine, ComplianceStatus } from '@/lib/compliance-engine'
+import { DictationInput, DictationTextArea } from '@/components/dictation/DictationButton'
+import DictationDateInput from '@/components/dictation/DictationDateInput'
 
 interface WizardStep {
   id: string
@@ -108,18 +110,18 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
     {
       id: 'forum-detection',
       title: 'Forum Detection',
-      description: 'Determine correct court jurisdiction',
+      description: 'Automatic court jurisdiction detection',
       icon: <Scale className="w-5 h-5" />,
       isComplete: wizardData.forum !== null,
-      isValid: wizardData.forum?.isValidJurisdiction ?? false
+      isValid: wizardData.forum?.confidence === 'high' || wizardData.forum?.confidence === 'medium'
     },
     {
       id: 'bill-type',
       title: 'Bill Type & Costs Order',
       description: 'Select bill type and costs order',
       icon: <DollarSign className="w-5 h-5" />,
-      isComplete: wizardData.billType !== '' && wizardData.costsOrder !== '',
-      isValid: wizardData.billType !== '' && wizardData.costsOrder !== ''
+      isComplete: !!wizardData.billType && wizardData.costsOrder.trim() !== '',
+      isValid: !!wizardData.billType && wizardData.costsOrder.trim() !== ''
     },
     {
       id: 'key-dates',
@@ -144,7 +146,11 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
   // Auto-detect forum when case info changes
   useEffect(() => {
     if (wizardData.claimValue > 0 && wizardData.caseType) {
-      const forum = detectForum(wizardData.claimValue, wizardData.caseType)
+      const caseDetails = {
+        claimValue: wizardData.claimValue,
+        caseType: wizardData.caseType as 'civil' | 'criminal' | 'appeal' | 'application' | 'review'
+      }
+      const forum = detectForum(caseDetails)
       setWizardData(prev => ({ ...prev, forum }))
     }
   }, [wizardData.claimValue, wizardData.caseType])
@@ -165,7 +171,7 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
         
       case 1: // Forum Detection
         if (!wizardData.forum) errors.push('Forum detection failed')
-        else if (!wizardData.forum.isValidJurisdiction) {
+        else if (wizardData.forum.confidence === 'low' || (wizardData.forum.warnings && wizardData.forum.warnings.length > 0)) {
           errors.push(wizardData.forum.reasoning)
         }
         break
@@ -237,11 +243,10 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
           <div className="space-y-4">
             <div>
               <Label htmlFor="caseNumber">Case Number</Label>
-              <Input
-                id="caseNumber"
+              <DictationInput
                 value={wizardData.caseNumber}
-                onChange={(e) => setWizardData(prev => ({ ...prev, caseNumber: e.target.value }))}
-                placeholder="e.g., 12345/2024"
+                onChange={(value) => setWizardData(prev => ({ ...prev, caseNumber: value }))}
+                placeholder="e.g., 12345/2024 (type or dictate)"
               />
             </div>
             
@@ -282,20 +287,28 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
           <div className="space-y-4">
             {wizardData.forum ? (
               <div className="space-y-3">
-                <div className={`p-4 rounded-lg border ${getStatusColor(wizardData.forum.isValidJurisdiction ? 'compliant' : 'non-compliant')}`}>
+                <div className={`p-4 rounded-lg border ${getStatusColor(wizardData.forum.confidence === 'high' ? 'compliant' : wizardData.forum.confidence === 'medium' ? 'warning' : 'non-compliant')}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    {getStatusIcon(wizardData.forum.isValidJurisdiction ? 'compliant' : 'non-compliant')}
+                    {getStatusIcon(wizardData.forum.confidence === 'high' ? 'compliant' : wizardData.forum.confidence === 'medium' ? 'warning' : 'non-compliant')}
                     <h3 className="font-semibold">Forum Detection Result</h3>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="font-medium">Court Type:</span>
-                      <p>{wizardData.forum.courtType}</p>
+                      <span className="font-medium">Court:</span>
+                      <p>{wizardData.forum.courtName}</p>
                     </div>
                     <div>
                       <span className="font-medium">Scale:</span>
                       <p>{wizardData.forum.scale}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Jurisdiction:</span>
+                      <p>{wizardData.forum.jurisdiction}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Confidence:</span>
+                      <p className="capitalize">{wizardData.forum.confidence}</p>
                     </div>
                     <div className="col-span-2">
                       <span className="font-medium">Reasoning:</span>
@@ -303,10 +316,14 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
                     </div>
                   </div>
                   
-                  {!wizardData.forum.isValidJurisdiction && wizardData.forum.suggestedForum && (
-                    <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
-                      <span className="font-medium text-blue-800">Suggestion:</span>
-                      <p className="text-blue-700">{wizardData.forum.suggestedForum}</p>
+                  {wizardData.forum.warnings && wizardData.forum.warnings.length > 0 && (
+                    <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
+                      <span className="font-medium text-yellow-800">Warnings:</span>
+                      <ul className="text-yellow-700 mt-1">
+                        {wizardData.forum.warnings.map((warning, index) => (
+                          <li key={index} className="text-sm">• {warning}</li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </div>
@@ -347,11 +364,10 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
             
             <div>
               <Label htmlFor="costsOrder">Costs Order Wording</Label>
-              <Textarea
-                id="costsOrder"
+              <DictationTextArea
                 value={wizardData.costsOrder}
-                onChange={(e) => setWizardData(prev => ({ ...prev, costsOrder: e.target.value }))}
-                placeholder="Enter the exact wording of the costs order..."
+                onChange={(value) => setWizardData(prev => ({ ...prev, costsOrder: value }))}
+                placeholder="Enter the exact wording of the costs order... (type or dictate)"
                 rows={3}
               />
               <p className="text-sm text-gray-600 mt-1">
@@ -367,65 +383,65 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="issueDate">Issue Date</Label>
-                <Input
+                <DictationDateInput
                   id="issueDate"
-                  type="date"
+                  label="Issue Date"
                   value={wizardData.keyDates.issueDate}
-                  onChange={(e) => setWizardData(prev => ({
+                  onChange={(value) => setWizardData(prev => ({
                     ...prev,
-                    keyDates: { ...prev.keyDates, issueDate: e.target.value }
+                    keyDates: { ...prev.keyDates, issueDate: value }
                   }))}
                 />
               </div>
               
               <div>
                 <Label htmlFor="serviceDate">Service Date</Label>
-                <Input
+                <DictationDateInput
                   id="serviceDate"
-                  type="date"
+                  label="Service Date"
                   value={wizardData.keyDates.serviceDate}
-                  onChange={(e) => setWizardData(prev => ({
+                  onChange={(value) => setWizardData(prev => ({
                     ...prev,
-                    keyDates: { ...prev.keyDates, serviceDate: e.target.value }
+                    keyDates: { ...prev.keyDates, serviceDate: value }
                   }))}
                 />
               </div>
               
               <div>
                 <Label htmlFor="trialDate">Trial Date</Label>
-                <Input
+                <DictationDateInput
                   id="trialDate"
-                  type="date"
+                  label="Trial Date"
                   value={wizardData.keyDates.trialDate}
-                  onChange={(e) => setWizardData(prev => ({
+                  onChange={(value) => setWizardData(prev => ({
                     ...prev,
-                    keyDates: { ...prev.keyDates, trialDate: e.target.value }
+                    keyDates: { ...prev.keyDates, trialDate: value }
                   }))}
                 />
               </div>
               
               <div>
                 <Label htmlFor="judgmentDate">Judgment Date</Label>
-                <Input
+                <DictationDateInput
                   id="judgmentDate"
-                  type="date"
+                  label="Judgment Date"
                   value={wizardData.keyDates.judgmentDate}
-                  onChange={(e) => setWizardData(prev => ({
+                  onChange={(value) => setWizardData(prev => ({
                     ...prev,
-                    keyDates: { ...prev.keyDates, judgmentDate: e.target.value }
+                    keyDates: { ...prev.keyDates, judgmentDate: value }
                   }))}
                 />
               </div>
               
               <div className="col-span-2">
                 <Label htmlFor="billDate">Bill Date</Label>
-                <Input
+                <DictationDateInput
                   id="billDate"
-                  type="date"
+                  label="Bill Date"
                   value={wizardData.keyDates.billDate}
-                  onChange={(e) => setWizardData(prev => ({
+                  onChange={(value) => setWizardData(prev => ({
                     ...prev,
-                    keyDates: { ...prev.keyDates, billDate: e.target.value }
+                    keyDates: { ...prev.keyDates, billDate: value }
                   }))}
                 />
               </div>
@@ -441,14 +457,24 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
               
               <div>
                 <Label htmlFor="clientName">Client Name</Label>
-                <Input
-                  id="clientName"
+                <DictationInput
                   value={wizardData.clientInfo.name}
-                  onChange={(e) => setWizardData(prev => ({
+                  onChange={(value) => setWizardData(prev => ({
                     ...prev,
-                    clientInfo: { ...prev.clientInfo, name: e.target.value }
+                    clientInfo: { ...prev.clientInfo, name: value }
                   }))}
-                  placeholder="Client name or company"
+                  placeholder="Client name or company (type or dictate)"
+                />
+              </div>
+              <div>
+                <Label htmlFor="clientAddress">Client Address</Label>
+                <DictationTextArea
+                  value={(wizardData as any).clientInfo?.address || ''}
+                  onChange={(value) => setWizardData(prev => ({
+                    ...prev,
+                    clientInfo: { ...prev.clientInfo, address: value } as any
+                  }))}
+                  placeholder="Physical or postal address"
                 />
               </div>
               
@@ -493,14 +519,35 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
               
               <div>
                 <Label htmlFor="practitionerName">Practitioner Name</Label>
-                <Input
-                  id="practitionerName"
+                <DictationInput
                   value={wizardData.practitionerInfo.name}
-                  onChange={(e) => setWizardData(prev => ({
+                  onChange={(value) => setWizardData(prev => ({
                     ...prev,
-                    practitionerInfo: { ...prev.practitionerInfo, name: e.target.value }
+                    practitionerInfo: { ...prev.practitionerInfo, name: value }
                   }))}
                   placeholder="Attorney/Advocate name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="opposingPartyName">Opposing Party Name</Label>
+                <DictationInput
+                  value={(wizardData as any).opposingPartyName || ''}
+                  onChange={(value) => setWizardData(prev => ({
+                    ...prev,
+                    opposingPartyName: value
+                  }) as any)}
+                  placeholder="Defendant/Respondent name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="opposingPartyAddress">Opposing Party Address</Label>
+                <DictationTextArea
+                  value={(wizardData as any).opposingPartyAddress || ''}
+                  onChange={(value) => setWizardData(prev => ({
+                    ...prev,
+                    opposingPartyAddress: value
+                  }) as any)}
+                  placeholder="Opposing party physical or postal address"
                 />
               </div>
               
@@ -562,46 +609,46 @@ export default function BillWizard({ onComplete, onCancel }: BillWizardProps) {
   
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-2xl">Bill Creation Wizard</CardTitle>
-              <p className="text-gray-600 mt-1">Step-by-step bill creation with compliance checking</p>
-            </div>
-            <Badge className={getStatusColor(complianceStatus)}>
-              {getStatusIcon(complianceStatus)}
-              <span className="ml-1 capitalize">{complianceStatus.replace('-', ' ')}</span>
-            </Badge>
-          </div>
-          
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Progress</span>
-              <span className="text-sm text-gray-600">{currentStep + 1} of {steps.length}</span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
-          
-          <div className="flex items-center gap-4 mt-4">
-            {steps.map((step, index) => (
-              <div
-                key={step.id}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
-                  index === currentStep
-                    ? 'bg-blue-50 border-blue-200 text-blue-800'
-                    : step.isComplete
-                    ? 'bg-green-50 border-green-200 text-green-800'
-                    : 'bg-gray-50 border-gray-200 text-gray-600'
-                }`}
-              >
-                {step.icon}
-                <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
-                {step.isComplete && <CheckCircle className="w-4 h-4 text-green-500" />}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl">Bill Creation Wizard</CardTitle>
+                <p className="text-gray-600 mt-1">Step-by-step bill creation with compliance checking</p>
               </div>
-            ))}
-          </div>
-        </CardHeader>
+              <Badge className={getStatusColor(complianceStatus)}>
+                {getStatusIcon(complianceStatus)}
+                <span className="ml-1 capitalize">{complianceStatus.replace('-', ' ')}</span>
+              </Badge>
+            </div>
+            
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Progress</span>
+                <span className="text-sm text-gray-600">{currentStep + 1} of {steps.length}</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+            
+            <div className="flex items-center gap-4 mt-4">
+              {steps.map((step, index) => (
+                <div
+                  key={step.id}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                    index === currentStep
+                      ? 'bg-blue-50 border-blue-200 text-blue-800'
+                      : step.isComplete
+                      ? 'bg-green-50 border-green-200 text-green-800'
+                      : 'bg-gray-50 border-gray-200 text-gray-600'
+                  }`}
+                >
+                  {step.icon}
+                  <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
+                  {step.isComplete && <CheckCircle className="w-4 h-4 text-green-500" />}
+                </div>
+              ))}
+            </div>
+          </CardHeader>
         
         <CardContent>
           <div className="mb-6">

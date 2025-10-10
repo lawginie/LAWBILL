@@ -184,7 +184,7 @@ export function OCRIntake({ matterId, courtType, scale, onItemsAdded }: OCRIntak
 
       if (billItem) {
         // Add OCR source reference
-        billItem.sourceReference = suggestion.sourceReference
+        billItem.source = suggestion.sourceReference
         return billItem
       }
 

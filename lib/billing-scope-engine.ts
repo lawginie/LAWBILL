@@ -5,7 +5,7 @@
  */
 
 import { TariffItem } from '@/data/sa-tariffs'
-import { enhancedTariffEngine } from './enhanced-tariff-engine'
+import { tariffEngine } from './enhanced-tariff-engine'
 import { complianceEngine } from './compliance-engine'
 
 export type BillType = 'party-and-party' | 'attorney-and-client' | 'own-client'
@@ -305,32 +305,60 @@ class BillingScopeEngine {
    * Applies scale limitations and caps
    */
   private applyScaleLimitations(context: BillingScopeContext) {
-    // Get tariff item for scale limitations
-    const tariffResult = enhancedTariffEngine.lookupTariffItem(
-      context.itemCode,
-      context.courtType,
-      context.scale,
-      context.workDate
-    )
+    try {
+      // Create BillLineItem for tariff calculation
+      const lineItem = {
+        id: `temp-${Date.now()}`,
+        date: context.workDate.toISOString(),
+        tariffCode: context.itemCode,
+        description: context.description,
+        quantity: 1,
+        unit: 'item',
+        narrative: context.description
+      }
 
-    if (!tariffResult.found || !tariffResult.item) {
+      // Create TariffCalculationContext
+       const tariffContext = {
+         forum: {
+           courtType: context.courtType as 'MC' | 'HC' | 'SCA' | 'CC',
+           courtName: context.courtType === 'MC' ? 'Magistrates Court' : 
+                     context.courtType === 'HC' ? 'High Court' :
+                     context.courtType === 'SCA' ? 'Supreme Court of Appeal' : 'Constitutional Court',
+           scale: context.scale as 'A' | 'B',
+           jurisdiction: context.courtType === 'MC' ? 'District' as const : 
+                         context.courtType === 'HC' ? 'High Court' as const : 'Appeal' as const,
+           claimValueRange: 'Unknown',
+           reasoning: 'Inferred from billing context',
+           confidence: 'high' as const,
+           warnings: []
+         },
+         billType: context.billType,
+         workDate: context.workDate.toISOString(),
+         isVATVendor: true,
+         clientType: 'individual' as const
+       }
+
+      // Get tariff calculation result
+      const tariffResult = tariffEngine.calculateTariff(lineItem, tariffContext)
+
+      let adjustedRate = tariffResult.item.rate
+      let cappedAmount = context.amount
+
+      // Apply caps if specified
+      if (tariffResult.item.capAmount && context.amount > tariffResult.item.capAmount) {
+        cappedAmount = tariffResult.item.capAmount
+      }
+
+      // Scale adjustments for punitive orders
+      if (context.costsOrder === 'punitive-scale') {
+        adjustedRate = adjustedRate * 1.5 // 150% of normal scale
+      }
+
+      return { adjustedRate, cappedAmount }
+    } catch (error) {
+      // If tariff lookup fails, return undefined values
       return { adjustedRate: undefined, cappedAmount: undefined }
     }
-
-    let adjustedRate = tariffResult.item.rate
-    let cappedAmount = context.amount
-
-    // Apply caps if specified
-    if (tariffResult.item.cap && context.amount > tariffResult.item.cap) {
-      cappedAmount = tariffResult.item.cap
-    }
-
-    // Scale adjustments for punitive orders
-    if (context.costsOrder === 'punitive-scale') {
-      adjustedRate = adjustedRate * 1.5 // 150% of normal scale
-    }
-
-    return { adjustedRate, cappedAmount }
   }
 
   /**

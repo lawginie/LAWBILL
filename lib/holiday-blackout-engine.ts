@@ -242,7 +242,7 @@ class HolidayBlackoutEngine {
    * Calculates the next available court date
    */
   getNextAvailableCourtDate(fromDate: Date = new Date()): DateAdjustmentResult {
-    let nextDate = new Date(fromDate)
+    const nextDate = new Date(fromDate)
     nextDate.setDate(nextDate.getDate() + 1) // Start from next day
     
     // Find next business day not in blackout
